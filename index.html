@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta http-equiv="Content-Security-Policy" content="font-src 'self' data: https://fonts.gstatic.com;">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SQL Query Excel Tool with SQL.js</title>
+  <!-- DataTables CSS -->
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.10.24/css/jquery.dataTables.min.css">
+  <link rel="stylesheet" href="https://cdn.datatables.net/scroller/2.0.3/css/scroller.dataTables.min.css">
+  <!-- Google Fonts -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" crossorigin="anonymous">
+  <style>
+  /* hide the default file-input UI */
+  #fileUpload {
+    display: none;
+  }
+    body {
+      font-family: 'Roboto', sans-serif;
+      padding: 20px;
+      font-size: 16px;
+      margin-bottom: 60px;
+    }
+    .hidden { display: none !important; }
+    .input-group { margin-bottom: 15px; }
+    .file-actions, .query-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    #queryInput {
+      width: 80%;
+      padding: 10px;
+      font-size: 16px;
+      border: 2px solid #ccc;
+      border-radius: 5px;
+      resize: vertical;
+      min-height: 50px;
+    }
+    .custom-upload, button {
+      padding: 10px 20px;
+      font-size: 16px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    .custom-upload { background-color: #007bff; color: #fff; }
+    .custom-upload:hover { background-color: #0056b3; }
+    #runQueryBtn { background-color: #28a745; color: #fff; }
+    #runQueryBtn:hover { background-color: #218838; }
+    #clearQueryBtn { background-color: #dc3545; color: #fff; }
+    #clearQueryBtn:hover { background-color: #c82333; }
+    #sampleSimpleBtn, #sampleJoinBtn {
+      background-color: #17a2b8; color: #fff;
+    }
+    #sampleSimpleBtn:hover, #sampleJoinBtn:hover {
+      background-color: #138496;
+    }
+    .exportBtn, .saveBtn {
+      background-color: #6c757d; color: #fff; margin-right: 5px;
+    }
+    .exportBtn:hover, .saveBtn:hover {
+      background-color: #5a6268;
+    }
+    #fileListTable {
+      width: 100%; border-collapse: collapse; margin-top: 15px;
+    }
+    #fileListTable th, #fileListTable td {
+      border: 1px solid #ccc; padding: 8px; text-align: left;
+    }
+    #fileListTable th { background-color: #f2f2f2; }
+    footer {
+      text-align: center;
+      position: fixed; left: 0; bottom: 0; width: 100%;
+      background-color: #f2f2f2; padding: 10px; font-size: 14px;
+      border-top: 1px solid #ccc;
+    }
+  </style>
+</head>
+<body>
+  <h1>SQL Query Excel Tool with SQL.js</h1>
+
+  <div class="input-group file-actions">
+    <label for="fileUpload" class="custom-upload">Select XLSX/CSV File</label>
+    <input type="file" id="fileUpload" accept=".xlsx,.xls,.csv" multiple>
+    <button id="sampleSimpleBtn">Sample Query</button>
+    <button id="sampleJoinBtn">Sample SQL JOIN Query</button>
+  </div>
+
+  <div id="fileListContainer" class="input-group hidden">
+    <h3>Loaded Files</h3>
+    <table id="fileListTable">
+      <thead>
+        <tr>
+          <th>Filename</th>
+          <th>Database Table</th>
+          <th>Records</th>
+          <th>Columns</th>
+          <th>Sheet</th>
+          <th>Actions</th>
+          <th>Export</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div class="input-group query-actions">
+    <textarea id="queryInput" placeholder="Input your query here"></textarea>
+    <button id="runQueryBtn">Run Query</button>
+    <button id="clearQueryBtn">Clear</button>
+  </div>
+
+  <div style="margin-top:20px;"></div>
+
+  <div class="input-group query-actions" id="exportButtonsContainer"></div>
+  <div id="recordCount"></div>
+  <div id="tableContainer"></div>
+
+  <!-- External Libraries -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js" defer></script>
+  <script src="https://code.jquery.com/jquery-3.5.1.min.js" defer></script>
+  <script src="https://cdn.datatables.net/1.10.24/js/jquery.dataTables.min.js" defer></script>
+  <script src="https://cdn.datatables.net/scroller/2.0.3/js/dataTables.scroller.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.6.2/sql-wasm.js" defer></script>
+
+  <script defer>
+    (function(){
+      let SQL, db;
+      let fileTableMapping = [];
+      let tableCounter = 0;
+      let currentQueryResult = null;
+
+      // Helpers
+      function applyHidden(el, hide) {
+        el.classList[hide ? 'add' : 'remove']('hidden');
+      }
+      function createButton(text, onClick, className='btn') {
+        const b = document.createElement('button');
+        b.textContent = text;
+        b.className = className;
+        if(onClick) b.addEventListener('click', onClick);
+        return b;
+      }
+
+// ← REPLACE your old formatDateValue entirely with this:
+function formatDateValue(val) {
+  // 1) Numeric Excel-serial dates in the typical range
+  if (typeof val === 'number') {
+    if (val > 20000 && val < 50000) {
+      const d = new Date((val - 25569) * 86400e3);
+      const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+      const day = String(d.getUTCDate()).padStart(2, '0');
+      const y = d.getUTCFullYear();
+      return `${m}/${day}/${y}`;
+    }
+    // any other number (including 0) → show raw
+    return String(val);
+  }
+
+  // 2) If XLSX gave you a real Date object (only happens if you kept cellDates:true)
+  if (val instanceof Date) {
+    const m = String(val.getMonth() + 1).padStart(2, '0');
+    const day = String(val.getDate()).padStart(2, '0');
+    const y = val.getFullYear();
+    return `${m}/${day}/${y}`;
+  }
+
+  // 3) Everything else (string, null, undefined) → just show it
+  return val == null ? '' : String(val);
+}
+
+      // Init DB + PRAGMAs
+      function initDB(){
+        window.initSqlJs({
+          locateFile: f => 'https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.6.2/'+f
+        }).then(SQLLib=>{
+          SQL = SQLLib;
+          db = new SQL.Database();
+          db.run(`
+            PRAGMA synchronous = OFF;
+            PRAGMA journal_mode = MEMORY;
+            PRAGMA cache_size = -2000;
+          `);
+        });
+      }
+
+      // Load JSON into SQL.js table
+      function loadExcelData(json, tableName){
+        if(!json.length) return alert('No data');
+        const cols = Object.keys(json[0]);
+        db.run(`DROP TABLE IF EXISTS "${tableName}";`);
+        db.run(`CREATE TABLE "${tableName}" (${cols.map(c=>`"${c}" TEXT`).join(',')});`);
+        const stmt = db.prepare(
+          `INSERT INTO "${tableName}" VALUES (${cols.map(()=>'?').join(',')});`
+        );
+        json.forEach(row=>{
+          stmt.run(cols.map(c=> formatDateValue(row[c]) ));
+        });
+        stmt.free();
+        const res = db.exec(`SELECT COUNT(*) FROM "${tableName}";`);
+        updateFileMapping(tableName, res[0].values[0][0], cols);
+      }
+
+      // Update mapping + UI
+      function updateFileMapping(name, count, cols){
+        let found = false;
+        fileTableMapping.forEach(item=>{
+          if(item.tableName===name){
+            item.recordCount = count; item.columns = cols; found=true;
+          }
+        });
+        if(!found){
+          fileTableMapping.push({
+            filename: 'QueryResults',
+            tableName: name,
+            recordCount: count,
+            columns: cols,
+            sheets:[], selectedSheet:''
+          });
+        }
+        renderFileList();
+      }
+
+      // Render file list w/ delegation
+      function renderFileList(){
+        const container = document.getElementById('fileListContainer');
+        const tbody = container.querySelector('tbody');
+        tbody.innerHTML = '';
+        if(!fileTableMapping.length){
+          applyHidden(container, true); return;
+        }
+        applyHidden(container, false);
+        fileTableMapping.forEach(item=>{
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${item.filename}</td>
+            <td>${item.tableName}</td>
+            <td>${item.recordCount}</td>
+            <td>${item.columns.join(', ')}</td>
+            <td>
+              ${item.sheets.length
+                ? `<select data-table="${item.tableName}">${
+                    item.sheets.map(s=>
+                      `<option value="${s}"${s===item.selectedSheet?' selected':''}>${s}</option>`
+                    ).join('')
+                  }</select>`
+                : '-'}
+            </td>
+            <td><button data-action="delete" data-table="${item.tableName}">Delete</button></td>
+            <td><button data-action="export-sql" data-table="${item.tableName}">Export SQL</button></td>
+          `;
+          tbody.appendChild(tr);
+        });
+      }
+
+      // Delegated click for delete & export-sql
+      document.addEventListener('click', e=>{
+        const btn = e.target.closest('button[data-action]');
+        if(!btn) return;
+        const table = btn.dataset.table;
+        if(btn.dataset.action==='delete'){
+          if(!confirm('Delete this table?')) return;
+          db.run(`DROP TABLE IF EXISTS "${table}";`);
+          fileTableMapping = fileTableMapping.filter(i=>i.tableName!==table);
+          renderFileList();
+        }
+        if(btn.dataset.action==='export-sql'){
+          exportResultsAsSql(table);
+        }
+      });
+
+      // Delegated sheet-change
+      document.addEventListener('change', e=>{
+        const sel = e.target.closest('select[data-table]');
+        if(!sel) return;
+        const tbl = sel.dataset.table;
+        const item = fileTableMapping.find(i=>i.tableName===tbl);
+        item.selectedSheet = sel.value;
+
+// -- inside handleFiles, after reading each workbook --
+const json = XLSX.utils.sheet_to_json(
+  wb.Sheets[sel],
+- { defval:'', cellDates:true }
++ { defval: '', cellDates: false, raw: true }
+);
+loadExcelData(json, tbl);
+
+
+      });
+
+      // Display Results (DataTables)
+function displayResults(results) {
+  currentQueryResult = results;
+  const container = document.getElementById('tableContainer');
+  container.innerHTML = '';
+  document.getElementById('exportButtonsContainer').innerHTML = '';
+
+  if (!results.length || !results[0].values.length) {
+    return container.textContent = 'No data found.';
+  }
+
+  const r = results[0];
+  const clearAllBtn = document.createElement('button');
+  clearAllBtn.textContent = 'Clear All Filters';
+  Object.assign(clearAllBtn.style, {
+    marginBottom: '8px',
+    padding: '6px 12px',
+    background: '#dc3545',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer'
+  });
+  container.appendChild(clearAllBtn);
+
+  let html = `
+    <table id="dataTable" class="display" style="width:100%">
+      <thead>
+        <tr>
+          ${r.columns.map(() =>
+            `<th><button class="filter-btn">&#128269; Filter</button></th>`
+          ).join('')}
+        </tr>
+        <tr>
+          ${r.columns.map(c => `<th class="col-header">${c}</th>`).join('')}
+        </tr>
+      </thead>
+      <tbody>
+        ${r.values.map(row =>
+          `<tr>${row.map(cell => `<td>${cell}</td>`).join('')}</tr>`
+        ).join('')}
+      </tbody>
+    </table>
+  `;
+  container.insertAdjacentHTML('beforeend', html);
+
+  // Styles
+  $('<style>').prop('type','text/css').html(`
+    .filter-btn {
+      background: transparent;
+      color: #333;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      padding: 4px 8px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    .filter-btn:hover {
+      background: #f0f0f0;
+    }
+    .filter-btn.active-filter {
+      background-color: #ffc107;
+      color: #000;
+      border-color: #e0a800;
+    }
+    .filter-actions button {
+      background: #17a2b8;
+      color: #fff;
+      border: none;
+      border-radius: 3px;
+      padding: 4px 6px;
+      cursor: pointer;
+      font-size: 11px;
+      flex: 1 1 auto;
+      min-width: 40px;
+      margin: 2px;
+    }
+    .filter-actions button.clear-filter {
+      background: #dc3545;
+    }
+    .filtered-column {
+      background: #fff3cd !important;
+    }
+    table.dataTable thead th.sorting:after,
+    table.dataTable thead th.sorting_asc:after,
+    table.dataTable thead th.sorting_desc:after {
+      display: none !important;
+    }
+  `).appendTo('head');
+
+  const popover = $('<div id="filter-popover"></div>').css({
+    position: 'absolute',
+    border: '1px solid #ccc',
+    background: '#fff',
+    padding: '10px',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+    zIndex: 1000,
+    display: 'none',
+    width: '280px',
+    maxHeight: '350px',
+    overflow: 'hidden'
+  }).appendTo('body');
+
+  const table = $('#dataTable').DataTable({
+    scrollX: true,
+    scrollY: '400px',
+    paging: true,
+    deferRender: true,
+    destroy: true,
+    initComplete: function () {
+      const api = this.api();
+
+      clearAllBtn.addEventListener('click', () => {
+        api.columns().every(function () {
+          this.search('');
+          $(this.header()).removeClass('filtered-column');
+          const btn = $(this.header()).closest('table')
+                         .find('thead tr:first th')
+                         .eq(this.index())
+                         .find('.filter-btn');
+          btn.removeClass('active-filter');
+        });
+        api.draw();
+      });
+
+      api.columns().every(function (colIdx) {
+        const column = this;
+        const headerCell = $(column.header());
+        const btn = headerCell.closest('table')
+                             .find('thead tr:first th')
+                             .eq(colIdx)
+                             .find('.filter-btn');
+
+        btn.on('click', function (e) {
+          e.stopPropagation();
+          popover.empty();
+
+          const searchInput = $('<input type="text" placeholder="Search...">').css({
+            width: '100%',
+            boxSizing: 'border-box',
+            margin: '0 0 8px',
+            padding: '4px'
+          });
+          popover.append(searchInput);
+
+          const listContainer = $('<div></div>').css({
+            overflowY: 'auto',
+            maxHeight: '180px',
+            marginBottom: '8px'
+          });
+          popover.append(listContainer);
+
+          const rawData = api.column(colIdx, { search: 'applied' }).data().toArray();
+          const values = Array.from(new Set(rawData)).sort();
+
+          values.forEach(v => {
+            listContainer.append(`
+              <label style="display:block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                <input type="checkbox" class="filter-item" value="${v}" checked> ${v}
+              </label>
+            `);
+          });
+
+          const actionRow = $('<div class="filter-actions"></div>').css({
+            display: 'flex',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap'
+          });
+          ['Select All', 'Select None', 'Clear Filter', 'OK', 'Cancel'].forEach(text => {
+            const cls = text.toLowerCase().replace(/ /g, '-');
+            actionRow.append(`<button class="${cls}">${text}</button>`);
+          });
+          popover.append(actionRow);
+
+          const pos = btn.offset();
+          popover.css({ top: pos.top + btn.outerHeight(), left: pos.left }).show();
+
+          actionRow.find('.select-all').on('click', () =>
+            listContainer.find('input.filter-item:visible').prop('checked', true)
+          );
+          actionRow.find('.select-none').on('click', () =>
+            listContainer.find('input.filter-item:visible').prop('checked', false)
+          );
+          actionRow.find('.clear-filter').on('click', () => {
+            column.search('').draw();
+            headerCell.removeClass('filtered-column');
+            btn.removeClass('active-filter');
+            popover.hide();
+          });
+          actionRow.find('.cancel').on('click', () => popover.hide());
+actionRow.find('.ok').on('click', () => {
+  const sel = listContainer.find('input.filter-item:checked')
+                           .map((_, cb) => cb.value).get();
+  const total = listContainer.find('input.filter-item').length;
+
+  if (sel.length === 0 || sel.length === total) {
+    // No filter applied
+    column.search('').draw();
+    headerCell.removeClass('filtered-column');
+    btn.removeClass('active-filter');
+  } else {
+    const expr = sel.map(v => `^${$.fn.dataTable.util.escapeRegex(v)}$`).join('|');
+    column.search(expr, true, false);
+    btn.addClass('active-filter');
+  }
+
+  api.draw();
+  popover.hide();
+});
+
+
+          searchInput.on('keyup', function () {
+            const term = this.value.toLowerCase();
+            listContainer.find('label').each(function () {
+              const text = $(this).text().toLowerCase();
+              $(this).toggle(text.indexOf(term) !== -1);
+            });
+          });
+        });
+      });
+
+      $(document).on('click', () => popover.hide());
+      popover.on('click', e => e.stopPropagation());
+    }
+  });
+
+  const ex = document.getElementById('exportButtonsContainer');
+  ex.appendChild(createButton('Export CSV', exportToCsv, 'exportBtn'));
+  ex.appendChild(createButton('Export XLSX', exportToXlsx, 'exportBtn'));
+  ex.appendChild(createButton('Save as New Table', saveResultsAsNewTable, 'saveBtn'));
+}
+
+
+
+
+      // Run / clear / sample / auto-resize
+      function runQuery(){
+        if(!fileTableMapping.length) return alert('Upload file first.');
+        const q = document.getElementById('queryInput').value.trim();
+        if(!q) return alert('Enter a query.');
+        try {
+          const res = db.exec(q);
+          document.getElementById('recordCount').textContent =
+            res.length && res[0].values.length
+              ? `Record Count: ${res[0].values.length}`
+              : 'Record Count: 0';
+          displayResults(res);
+        } catch(e){
+          alert('Query Error: '+e.message);
+        }
+      }
+      function clearQuery(){
+        const ta = document.getElementById('queryInput');
+        if(!ta.value.trim()) return alert('Already empty.');
+        if(confirm('Clear query?')){
+          ta.value=''; ta.style.height='50px';
+        }
+      }
+      function autoResize(){
+        const ta = document.getElementById('queryInput');
+        ta.style.height='auto'; ta.style.height=ta.scrollHeight+'px';
+      }
+
+      // Exports & Save
+      function exportToCsv(){
+        if(!currentQueryResult) return alert('No data.');
+        const r = currentQueryResult[0];
+        const csv = [r.columns.join(',')]
+          .concat(r.values.map(row=>
+            row.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')
+          )).join('\n');
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+        a.download='export.csv'; a.click();
+      }
+      function exportToXlsx(){
+        if(!currentQueryResult) return alert('No data.');
+        const r = currentQueryResult[0];
+        const ws = XLSX.utils.aoa_to_sheet([r.columns, ...r.values]);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb,ws,'Export');
+        XLSX.writeFile(wb,'export.xlsx');
+      }
+      function saveResultsAsNewTable(){
+        if(!currentQueryResult) return alert('No data.');
+        const name = prompt('New table name:');
+        if(!name) return;
+        const r = currentQueryResult[0];
+        db.run(`CREATE TABLE "${name}" (${r.columns.map(c=>`"${c}" TEXT`).join(',')});`);
+        const st = db.prepare(`INSERT INTO "${name}" VALUES(${r.columns.map(()=>'?').join(',')});`);
+        r.values.forEach(row=>st.run(row)); st.free();
+        const cnt = db.exec(`SELECT COUNT(*) FROM "${name}";`)[0].values[0][0];
+        updateFileMapping(name,cnt,r.columns);
+        alert(`Saved as "${name}" (${cnt} rows).`);
+      }
+
+      // Convert to SQL export
+function exportResultsAsSql(tableName) {
+  if (!tableName) {
+    alert("No table name provided.");
+    return;
+  }
+  const res = db.exec(`SELECT * FROM "${tableName}";`);
+  if (!res.length || !res[0].values.length) {
+    alert("No data available to export.");
+    return;
+  }
+  const d = res[0];
+
+  // SQLite-style DROP + CREATE
+  let sql = `DROP TABLE IF EXISTS "${tableName}";\n`;
+  sql += `CREATE TABLE "${tableName}" (\n  ` +
+         d.columns.map(c => `"${c}" TEXT`).join(",\n  ") +
+         `\n);\n\n`;
+
+  // INSERT statements
+  d.values.forEach(row => {
+    const vals = row
+      .map(v => `'${String(v).replace(/'/g, "''")}'`)
+      .join(", ");
+    sql += `INSERT INTO "${tableName}" ("${d.columns.join('","')}") VALUES (${vals});\n`;
+  });
+
+  const blob = new Blob([sql], { type: "application/sql" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `${tableName}.sql`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+}
+
+      // File upload handler
+      function handleFiles(e){
+        const files = Array.from(e.target.files);
+        files.forEach(f=>{
+          const r = new FileReader();
+          r.onload = ev=>{
+            const data = new Uint8Array(ev.target.result);
+            const wb = XLSX.read(data,{type:'array'});
+            const sheets = wb.SheetNames;
+            const sel = sheets[0];
+            tableCounter++;
+            const tbl = 'excel_data'+tableCounter;
+            fileTableMapping.push({
+              filename: f.name,
+              tableName: tbl,
+              recordCount:0,
+              columns:[],
+              sheets:sheets,
+              selectedSheet:sel,
+              workbook:wb
+            });
+            renderFileList();
+// inside handleFiles (after reading each workbook)
+const json = XLSX.utils.sheet_to_json(
+  wb.Sheets[sel],
+  { defval: '', cellDates: false }
+);
+loadExcelData(json, tbl);
+
+          };
+          r.readAsArrayBuffer(f);
+        });
+      }
+
+      // Init on DOM ready
+      document.addEventListener('DOMContentLoaded',()=>{
+        initDB();
+        document.getElementById('fileUpload').addEventListener('change', handleFiles);
+        document.getElementById('runQueryBtn').addEventListener('click', runQuery);
+        document.getElementById('clearQueryBtn').addEventListener('click', clearQuery);
+        document.getElementById('queryInput').addEventListener('input', autoResize);
+        document.getElementById('sampleSimpleBtn').addEventListener('click',()=>{
+          document.getElementById('queryInput').value = 'SELECT * FROM excel_data1 LIMIT 10;';
+          autoResize();
+        });
+        document.getElementById('sampleJoinBtn').addEventListener('click',()=>{
+          document.getElementById('queryInput').value =
+            'SELECT a.column1, b.column2\n' +
+            'FROM excel_data1 AS a\n' +
+            'JOIN excel_data2 AS b ON a.common_field = b.common_field\n' +
+            'LIMIT 10;';
+          autoResize();
+        });
+      });
+    })();
+  </script>
+
+  <footer>
+    Made by QA team J & J, 2025
+  </footer>
+</body>
+</html>
