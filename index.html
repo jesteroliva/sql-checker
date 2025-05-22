@@ -1,0 +1,1336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link rel="icon" href="sql.png" type="image/x-icon">
+  <link rel="shortcut icon" href="sql.png" type="image/x-icon">
+
+  <meta http-equiv="Content-Security-Policy" content="font-src 'self' data: https://fonts.gstatic.com;">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SQL Query Excel Tool with SQL.js</title>
+  <!-- DataTables CSS -->
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.10.24/css/jquery.dataTables.min.css">
+  <link rel="stylesheet" href="https://cdn.datatables.net/scroller/2.0.3/css/scroller.dataTables.min.css">
+  <!-- Google Fonts -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Roboto+Mono:wght@400;500&display=swap" crossorigin="anonymous">
+  <!-- CodeMirror CSS -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/hint/show-hint.min.css">
+  <!-- Our CSS -->
+  <style>
+/* Main styling */
+body {
+  font-family: 'Roboto', sans-serif;
+  padding: 0;
+  margin: 0;
+  font-size: 16px;
+  color: #333;
+  background-color: #f7f9fc;
+  line-height: 1.5;
+}
+
+.container {
+  width: 98%;
+  max-width: 98%;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+header {
+  background-color: #2c3e50;
+  padding: 1px 20px; /* was 20px */
+  color: white;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+h1 {
+  margin: 0;
+  font-size: 27px; /* was 28px */
+  font-weight: 400;
+}
+
+.logo svg {
+  width: 20px;  /* slightly smaller */
+  height: 20px;
+}
+
+
+.header-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.logo img {
+  height: 32px;
+  width: auto;
+}
+
+.card {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.card h3 {
+  margin-top: 0;
+  color: #2c3e50;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 10px;
+  font-weight: 500;
+}
+
+/* Hide default file input */
+#fileUpload {
+  display: none;
+}
+
+/* Input groups */
+.input-group {
+  margin-bottom: 20px;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* File actions */
+.file-actions, .query-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.query-actions .button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+/* Buttons */
+button, .custom-upload {
+  padding: 10px 16px;
+  font-size: 14px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+button svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Upload button */
+.custom-upload {
+  background-color: #3498db;
+  color: white;
+}
+.custom-upload:hover {
+  background-color: #2980b9;
+}
+
+/* Primary action button */
+#runQueryBtn {
+  background-color: #2ecc71;
+  color: white;
+}
+#runQueryBtn:hover {
+  background-color: #27ae60;
+}
+
+/* Secondary action button */
+#clearQueryBtn {
+  background-color: #e74c3c;
+  color: white;
+}
+#clearQueryBtn:hover {
+  background-color: #c0392b;
+}
+
+/* Sample buttons */
+#sampleSimpleBtn, #sampleJoinBtn {
+  background-color: #3498db;
+  color: white;
+}
+
+#sampleSimpleBtn:hover, #sampleJoinBtn:hover {
+  background-color: #2980b9;
+}
+
+
+
+/* Export buttons */
+.exportBtn, .saveBtn {
+  background-color: #34495e;
+  color: white;
+}
+.exportBtn:hover, .saveBtn:hover {
+  background-color: #2c3e50;
+}
+
+/* File list table and dropdowns */
+#fileListTable {
+  width: 100%;
+  border-collapse: collapse;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.1);
+}
+
+#fileListTable th, #fileListTable td {
+  padding: 12px 15px;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+}
+
+#fileListTable th {
+  background-color: #f8f9fa;
+  font-weight: 500;
+  color: #2c3e50;
+}
+
+#fileListTable tr:last-child td {
+  border-bottom: none;
+}
+
+#fileListTable tr:hover {
+  background-color: #f8f9fa;
+}
+
+#fileListTable button {
+  padding: 8px 14px;
+  font-size: 13px;
+  background-color: #5dade2;
+  color: white;
+  border-radius: 4px;
+  border: none;
+  transition: all 0.2s;
+}
+
+#fileListTable button:hover {
+  background-color: #2980b9;
+}
+
+#fileListTable select {
+  padding: 8px 12px;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+  background-color: white;
+  font-family: 'Roboto', sans-serif;
+  font-size: 14px;
+  min-width: 150px;
+  cursor: pointer;
+  color: #333;
+  transition: all 0.2s;
+  background-image: url("data:image/svg+xml;utf8,<svg fill='%23333' height='24' viewBox='0 0 24 24' width='24' xmlns='http://www.w3.org/2000/svg'><path d='M7 10l5 5 5-5z'/><path d='M0 0h24v24H0z' fill='none'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}
+
+#fileListTable select:hover {
+  border-color: #aaa;
+}
+
+#fileListTable select:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(52,152,219,0.3);
+  border-color: #3498db;
+}
+
+/* CodeMirror styling */
+.CodeMirror {
+  height: 250px;
+  width: 100%;
+  border-radius: 6px;
+  border: 1px solid #e0e0e0;
+  font-family: 'Roboto Mono', monospace;
+  font-size: 14px;
+  line-height: 1.6;
+  margin-bottom: 12px;
+}
+
+.cm-s-default .CodeMirror-matchingbracket {
+  text-decoration: underline;
+  color: #000 !important;
+  font-weight: bold;
+}
+
+/* DataTables customization */
+div.dataTables_wrapper {
+  background-color: white;
+  border-radius: 8px;
+  padding: 15px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+}
+
+table.dataTable thead th {
+  border-bottom: 2px solid #e0e0e0;
+  padding: 12px 18px;
+  font-weight: 500;
+  color: #2c3e50;
+}
+
+table.dataTable tbody td {
+  padding: 12px 18px;
+  border-bottom: 1px solid #f2f2f2;
+}
+
+table.dataTable.stripe tbody tr.odd,
+table.dataTable.display tbody tr.odd {
+  background-color: #f9f9f9;
+}
+
+.dataTables_info, .dataTables_length, .dataTables_filter {
+  margin-bottom: 15px;
+  color: #666;
+}
+
+.dataTables_length select, .dataTables_filter input {
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 6px 10px;
+}
+
+.dataTables_paginate {
+  margin-top: 15px !important;
+}
+
+
+.dataTables_paginate .paginate_button {
+  border-radius: 4px !important;
+  border: 1px solid #ccc !important;
+  background: #f9f9f9 !important;
+  color: #000 !important; /* Black text */
+}
+
+
+.dataTables_paginate .paginate_button.current {
+  background: #d0e7ff !important;
+  color: #000 !important; /* Black text */
+  border-color: #a3cfff !important;
+}
+
+.dataTables_paginate .paginate_button:hover {
+  background-color: #e6f2ff !important;
+  color: #000 !important; /* Keep black on hover */
+  border-color: #a3cfff !important;
+}
+
+
+.dataTables_paginate .paginate_button.current:hover {
+  background: #cce0ff !important;
+  color: #000 !important; /* Keep black on hover */
+}
+
+/* Filtering */
+.filter-btn {
+  background: #3498db;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.filter-btn svg {
+  width: 12px;
+  height: 12px;
+}
+
+.filter-btn:hover {
+  background: #2980b9;
+}
+
+.filter-btn.active-filter {
+  background-color: #e74c3c;
+  color: white;
+}
+
+#filter-popover {
+  border-radius: 8px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.2);
+  border: none;
+  padding: 15px;
+}
+
+#filter-popover input[type="text"] {
+  padding: 10px;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 10px;
+  font-size: 14px;
+}
+
+#filter-popover label {
+  padding: 6px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+#filter-popover input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.filter-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.filter-actions button {
+  background: #3498db;
+  color: white;
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-size: 12px;
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  border: none;
+}
+
+.filter-actions button:hover {
+  background: #2980b9;
+}
+
+.filter-actions button.select-all,
+.filter-actions button.select-none {
+  background: #9b59b6;
+}
+
+.filter-actions button.select-all:hover,
+.filter-actions button.select-none:hover {
+  background: #8e44ad;
+}
+
+.filter-actions button.clear-filter {
+  background: #e74c3c;
+}
+
+.filter-actions button.clear-filter:hover {
+  background: #c0392b;
+}
+
+.filter-actions button.ok {
+  background: #2ecc71;
+}
+
+.filter-actions button.ok:hover {
+  background: #27ae60;
+}
+
+.filter-actions button.cancel {
+  background: #95a5a6;
+}
+
+.filter-actions button.cancel:hover {
+  background: #7f8c8d;
+}
+
+.filtered-column {
+  background: #e3f2fd !important;
+}
+
+/* Record count */
+#recordCount {
+  background: #3498db;
+  color: white;
+  display: inline-block;
+  padding: 8px 15px;
+  border-radius: 4px;
+  margin-bottom: 10px;
+  font-weight: 500;
+}
+
+/* Footer */
+footer {
+  background-color: transparent;
+  color: #333; /* matches body text color */
+  text-align: center;
+  padding: 15px;
+  font-size: 14px;
+  position: relative;
+  margin-top: 40px;
+}
+
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .header-content {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  
+  .file-actions, .query-actions {
+    flex-direction: column;
+  }
+  
+  #fileListTable {
+    display: block;
+    overflow-x: auto;
+  }
+}
+/* Add this to your style section */
+#fileListTable button[data-action="delete"] {
+  background-color: #e74c3c;
+}
+#fileListTable button[data-action="delete"]:hover {
+  background-color: #c0392b;
+}
+/* Force black text on pagination buttons even when hovered */
+.dataTables_wrapper .dataTables_paginate .paginate_button {
+  color: #000 !important;
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button:hover,
+.dataTables_wrapper .dataTables_paginate .paginate_button.current:hover {
+  background-color: #e6f2ff !important;
+  color: #000 !important;
+  border-color: #a3cfff !important;
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button.current {
+  background: #d0e7ff !important;
+  color: #000 !important;
+  border-color: #a3cfff !important;
+}
+
+
+/* Modal styles */
+.modal {
+  display: none;
+  position: fixed;
+  z-index: 1000;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  background-color: rgba(0,0,0,0.4);
+  animation: fadeIn 0.3s;
+}
+
+.modal-content {
+  position: relative;
+  background-color: #fefefe;
+  margin: 3% auto;
+  padding: 0;
+  border: 1px solid #888;
+  width: 80%;
+  max-width: 900px;
+  max-height: 85vh;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+  border-radius: 8px;
+  animation: slideIn 0.3s;
+}
+
+.modal-header {
+  padding: 15px 20px;
+  background-color: #2c3e50;
+  color: white;
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.close {
+  color: white;
+  font-size: 28px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.close:hover {
+  color: #ccc;
+}
+
+.modal-body {
+  padding: 20px;
+  max-height: calc(85vh - 70px);
+  overflow-y: auto;
+}
+
+/* Tab styling */
+.tab {
+  overflow: hidden;
+  border: 1px solid #ccc;
+  background-color: #f1f1f1;
+  border-radius: 4px;
+  margin-bottom: 20px;
+}
+
+.tab button {
+  background-color: inherit;
+  float: left;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  padding: 14px 16px;
+  transition: 0.3s;
+  font-size: 16px;
+}
+
+.tab button:hover {
+  background-color: #ddd;
+}
+
+.tab button.active {
+  background-color: #3498db;
+  color: white;
+}
+
+.tabcontent {
+  display: none;
+  padding: 15px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  animation: fadeIn 0.5s;
+}
+
+/* EPS buttons styling */
+.eps-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 20px 0;
+}
+
+.eps-button {
+  display: block;
+  padding: 12px 24px;
+  background-color: #3498db;
+  color: white;
+  text-decoration: none;
+  border-radius: 4px;
+  font-weight: 500;
+  text-align: center;
+  transition: background-color 0.2s;
+}
+
+.eps-button:hover {
+  background-color: #2980b9;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {opacity: 0;}
+  to {opacity: 1;}
+}
+
+@keyframes slideIn {
+  from {transform: translateY(-50px); opacity: 0;}
+  to {transform: translateY(0); opacity: 1;}
+}
+
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container">
+<!-- Find the header-content div and update it like this -->
+<div class="header-content">
+  <div class="logo">
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 15v4c0 1.1.9 2 2 2h14a2 2 0 0 0 2-2v-4M17 8l-5-5-5 5M12 3v16"/>
+    </svg>
+    <h1>SQL Query Excel Tool</h1>
+  </div>
+  
+  <!-- Add this new help button -->
+  <button id="helpBtn" class="help-btn">
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10"></circle>
+      <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+      <line x1="12" y1="17" x2="12.01" y2="17"></line>
+    </svg>
+    Help Guide
+  </button>
+</div>
+    </div>
+  </header>
+  
+  <div class="container">
+    <div class="card">
+      <h3>File Management</h3>
+      <div class="input-group file-actions">
+        <label for="fileUpload" class="custom-upload btn btn-primary">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="17 8 12 3 7 8"></polyline>
+            <line x1="12" y1="3" x2="12" y2="15"></line>
+          </svg>
+          Select XLSX/CSV File
+        </label>
+        <input type="file" id="fileUpload" accept=".xlsx,.xls,.csv" multiple>
+        <button id="sampleSimpleBtn">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="16 18 22 12 16 6"></polyline>
+            <polyline points="8 6 2 12 8 18"></polyline>
+          </svg>
+          Sample Query
+        </button>
+        <button id="sampleJoinBtn">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="5" r="3"></circle>
+            <line x1="12" y1="22" x2="12" y2="8"></line>
+            <path d="M5 12H2a10 10 0 0 0 20 0h-3"></path>
+          </svg>
+          Sample JOIN Query
+        </button>
+      </div>
+    </div>
+
+    <div id="fileListContainer" class="card hidden">
+      <h3>Loaded Files</h3>
+      <table id="fileListTable">
+        <thead>
+          <tr>
+            <th>Filename</th>
+            <th>Database Table</th>
+            <th>Records</th>
+            <th>Columns</th>
+            <th>Sheet</th>
+            <th>Actions</th>
+            <th>Export</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+<div class="card">
+  <h3>SQL Query Editor</h3>
+  <div class="input-group query-actions">
+    <!-- Make editor take full width -->
+    <div id="queryEditor" style="width: 100%;"></div>
+    <!-- Keyboard shortcuts info -->
+
+    <!-- Move buttons below the editor -->
+    <div class="button-row" style="margin-top: 15px; display: flex; gap: 10px;">
+      <button id="runQueryBtn">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="5 3 19 12 5 21 5 3"></polygon>
+        </svg>
+        Run Query
+      </button>
+      <button id="clearQueryBtn">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 6h18"></path>
+          <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
+          <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+          <line x1="10" y1="11" x2="10" y2="17"></line>
+          <line x1="14" y1="11" x2="14" y2="17"></line>
+        </svg>
+        Clear
+      </button>
+
+    <div style="margin-top: 5px; font-size: 13px; color: #666; display: flex; align-items: center; gap: 15px;">
+      <div style="display: flex; align-items: center; gap: 5px;">
+        <span style="background: #f0f0f0; padding: 2px 5px; border-radius: 3px; border: 1px solid #ddd; font-family: monospace;">Ctrl+Space</span>
+        <span>Show autocomplete</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 5px;">
+        <span style="background: #f0f0f0; padding: 2px 5px; border-radius: 3px; border: 1px solid #ddd; font-family: monospace;">Ctrl+Enter</span>
+        <span>Run query</span>
+      </div>
+    </div>
+
+    </div>
+  </div>
+</div>
+
+
+<div class="card">
+  <h3 style="margin-bottom: 5px;">Query Results</h3>
+  <div id="recordCount" style="
+  background: #d6eaf8;
+  color: #21618c;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-weight: 500;
+  font-size: 14px;
+  display: none;">
+  </div>
+  <div class="input-group query-actions" id="exportButtonsContainer"></div>
+  <div id="tableContainer"></div>
+</div>
+
+  <!-- External Libraries -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js" defer></script>
+  <script src="https://code.jquery.com/jquery-3.5.1.min.js" defer></script>
+  <script src="https://cdn.datatables.net/1.10.24/js/jquery.dataTables.min.js" defer></script>
+  <script src="https://cdn.datatables.net/scroller/2.0.3/js/dataTables.scroller.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.6.2/sql-wasm.js" defer></script>
+  <!-- CodeMirror JS -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/sql/sql.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/edit/matchbrackets.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/hint/show-hint.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/hint/sql-hint.min.js" defer></script>
+
+
+
+<!-- Replace the existing modal HTML with this updated version -->
+<div id="helpModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>SQL Query Excel Tool Guide</h2>
+      <span class="close">&times;</span>
+    </div>
+    <div class="modal-body">
+      <div class="tab">
+        <button class="tablinks active" onclick="openHelpTab(event, 'Overview')">Overview</button>
+        <button class="tablinks" onclick="openHelpTab(event, 'SQLSyntax')">SQL Syntax</button>
+      </div>
+
+      <div id="Overview" class="tabcontent" style="display:block;">
+        <h3>Welcome to SQL Query Excel Tool</h3>
+        <p>This tool allows you to load Excel files (XLSX) and CSV files into an in-memory SQL database and query them using standard SQL commands. Key features include:</p>
+        <ul>
+          <li>Load multiple Excel/CSV files into SQL tables</li>
+          <li>Run SQL queries across all loaded data</li>
+          <li>Export results to CSV or Excel format</li>
+          <li>Save query results as new tables</li>
+          <li>Join data across multiple sheets or files</li>
+        </ul>
+        <p>All processing happens in your browser - no data is sent to any server.</p>
+      </div>
+
+      <div id="SQLSyntax" class="tabcontent">
+        <h3>SQL Syntax Guide</h3>
+        <div class="eps-buttons">
+          <a href="eps/eps_696_queries.html" class="eps-button" target="_blank">EPS 696</a>
+          <a href="under_construction.html" class="eps-button" target="_blank" target="_blank">EPS 000</a>
+          <a href="under_construction.html" class="eps-button" target="_blank">EPS 000</a>
+          <a href="under_construction.html" class="eps-button" target="_blank">EPS 000</a>
+          <a href="under_construction.html" class="eps-button" target="_blank">EPS 000</a>
+          <a href="under_construction.html" class="eps-button" target="_blank">EPS 000</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+  <footer>
+© 2025 QA Team. Created by Jester Oliva & Jerry May Campomayor
+  </footer>
+
+ <script defer>
+    (function(){
+      let SQL, db;
+      let fileTableMapping = [];
+      let tableCounter = 0;
+      let currentQueryResult = null;
+      let editor; // CodeMirror editor instance
+
+      // Helpers
+      function applyHidden(el, hide) {
+        el.classList[hide ? 'add' : 'remove']('hidden');
+      }
+      function createButton(text, onClick, className='btn') {
+        const b = document.createElement('button');
+        b.textContent = text;
+        b.className = className;
+        if(onClick) b.addEventListener('click', onClick);
+        return b;
+      }
+
+      function formatDateValue(val) {
+        // 1) Numeric Excel-serial dates in the typical range
+        if (typeof val === 'number') {
+          if (val > 20000 && val < 50000) {
+            const d = new Date((val - 25569) * 86400e3);
+            const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+            const day = String(d.getUTCDate()).padStart(2, '0');
+            const y = d.getUTCFullYear();
+            return `${m}/${day}/${y}`;
+          }
+          // any other number (including 0) → show raw
+          return String(val);
+        }
+
+        // 2) If XLSX gave you a real Date object (only happens if you kept cellDates:true)
+        if (val instanceof Date) {
+          const m = String(val.getMonth() + 1).padStart(2, '0');
+          const day = String(val.getDate()).padStart(2, '0');
+          const y = val.getFullYear();
+          return `${m}/${day}/${y}`;
+        }
+
+        // 3) Everything else (string, null, undefined) → just show it
+        return val == null ? '' : String(val);
+      }
+
+      // Init DB + PRAGMAs
+      function initDB(){
+        window.initSqlJs({
+          locateFile: f => 'https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.6.2/'+f
+        }).then(SQLLib=>{
+          SQL = SQLLib;
+          db = new SQL.Database();
+          db.run(`
+            PRAGMA synchronous = OFF;
+            PRAGMA journal_mode = MEMORY;
+            PRAGMA cache_size = -2000;
+          `);
+        });
+      }
+
+      // Load JSON into SQL.js table
+      function loadExcelData(json, tableName){
+        if(!json.length) return alert('No data');
+        const cols = Object.keys(json[0]);
+        db.run(`DROP TABLE IF EXISTS "${tableName}";`);
+        db.run(`CREATE TABLE "${tableName}" (${cols.map(c=>`"${c}" TEXT`).join(',')});`);
+        const stmt = db.prepare(
+          `INSERT INTO "${tableName}" VALUES (${cols.map(()=>'?').join(',')});`
+        );
+        json.forEach(row=>{
+          stmt.run(cols.map(c=> formatDateValue(row[c]) ));
+        });
+        stmt.free();
+        const res = db.exec(`SELECT COUNT(*) FROM "${tableName}";`);
+        updateFileMapping(tableName, res[0].values[0][0], cols);
+      }
+
+      // Update mapping + UI
+      function updateFileMapping(name, count, cols){
+        let found = false;
+        fileTableMapping.forEach(item=>{
+          if(item.tableName===name){
+            item.recordCount = count; item.columns = cols; found=true;
+          }
+        });
+        if(!found){
+          fileTableMapping.push({
+            filename: 'QueryResults',
+            tableName: name,
+            recordCount: count,
+            columns: cols,
+            sheets:[], selectedSheet:''
+          });
+        }
+        renderFileList();
+      }
+
+      // Render file list w/ delegation
+      function renderFileList(){
+        const container = document.getElementById('fileListContainer');
+        const tbody = container.querySelector('tbody');
+        tbody.innerHTML = '';
+        if(!fileTableMapping.length){
+          applyHidden(container, true); return;
+        }
+        applyHidden(container, false);
+        fileTableMapping.forEach(item=>{
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${item.filename}</td>
+            <td>${item.tableName}</td>
+            <td>${item.recordCount}</td>
+            <td>${item.columns.join(', ')}</td>
+            <td>
+              ${item.sheets.length
+                ? `<select data-table="${item.tableName}">${
+                    item.sheets.map(s=>
+                      `<option value="${s}"${s===item.selectedSheet?' selected':''}>${s}</option>`
+                    ).join('')
+                  }</select>`
+                : '-'}
+            </td>
+            <td><button data-action="delete" data-table="${item.tableName}">Delete</button></td>
+            <td><button data-action="export-sql" data-table="${item.tableName}">Export SQL</button></td>
+          `;
+          tbody.appendChild(tr);
+        });
+      }
+
+      // Delegated click for delete & export-sql
+      document.addEventListener('click', e=>{
+        const btn = e.target.closest('button[data-action]');
+        if(!btn) return;
+        const table = btn.dataset.table;
+        if(btn.dataset.action==='delete'){
+          if(!confirm('Delete this table?')) return;
+          db.run(`DROP TABLE IF EXISTS "${table}";`);
+          fileTableMapping = fileTableMapping.filter(i=>i.tableName!==table);
+          renderFileList();
+        }
+        if(btn.dataset.action==='export-sql'){
+          exportResultsAsSql(table);
+        }
+      });
+
+      // Delegated sheet-change
+      document.addEventListener('change', e=>{
+        const sel = e.target.closest('select[data-table]');
+        if(!sel) return;
+        const tbl = sel.dataset.table;
+        const item = fileTableMapping.find(i=>i.tableName===tbl);
+        item.selectedSheet = sel.value;
+        
+        const json = XLSX.utils.sheet_to_json(
+          item.workbook.Sheets[sel.value],
+          { defval: '', cellDates: false, raw: true }
+        );
+        loadExcelData(json, tbl);
+      });
+
+      // Display Results (DataTables)
+function displayResults(results) {
+  currentQueryResult = results;
+  const container = document.getElementById('tableContainer');
+  container.innerHTML = '';
+  document.getElementById('exportButtonsContainer').innerHTML = '';
+
+  if (!results.length || !results[0].values.length) {
+    return container.textContent = 'No data found.';
+  }
+
+  const r = results[0];
+
+  let html = `
+    <table id="dataTable" class="display" style="width:100%">
+<thead>
+  <tr>
+    ${r.columns.map(c => `<th>${c}</th>`).join('')}
+  </tr>
+</thead>
+
+
+      <tbody>
+        ${r.values.map(row => `<tr>${row.map(cell => `<td>${cell}</td>`).join('')}</tr>`).join('')}
+      </tbody>
+    </table>
+  `;
+  container.insertAdjacentHTML('beforeend', html);
+
+  $('<style>').prop('type', 'text/css').html(`
+    table.dataTable thead th.sorting:after,
+    table.dataTable thead th.sorting_asc:after,
+    table.dataTable thead th.sorting_desc:after {
+      display: none !important;
+    }
+  `).appendTo('head');
+
+const table = $('#dataTable').DataTable({
+  scrollX: true,
+  scrollY: '400px',
+  paging: true,
+  deferRender: true,
+  destroy: true,
+  ordering: true, // ✅ Enable sorting
+  order: [], // ✅ Prevent default sorting
+  initComplete: function () {
+    const ex = document.getElementById('exportButtonsContainer');
+    ex.appendChild(createButton('Export CSV', exportToCsv, 'exportBtn'));
+    ex.appendChild(createButton('Export XLSX', exportToXlsx, 'exportBtn'));
+    ex.appendChild(createButton('Save as New Table', saveResultsAsNewTable, 'saveBtn'));
+  }
+});
+
+}
+
+
+      // Run / clear / sample
+function runQuery(){
+  if(!fileTableMapping.length) return alert('Upload file first.');
+  const q = editor.getValue().trim();
+  if(!q) return alert('Enter a query.');
+  try {
+    const res = db.exec(q);
+    const recordCountEl = document.getElementById('recordCount');
+    if(res.length && res[0].values.length) {
+      recordCountEl.textContent = `Record Count: ${res[0].values.length}`;
+      recordCountEl.style.display = 'inline-block';
+    } else {
+      recordCountEl.textContent = 'Record Count: 0';
+      recordCountEl.style.display = 'inline-block';
+    }
+    displayResults(res);
+  } catch(e){
+    alert('Query Error: '+e.message);
+  }
+}
+      
+      function clearQuery(){
+        if(!editor.getValue().trim()) return alert('Already empty.');
+        if(confirm('Clear query?')){
+          editor.setValue('');
+        }
+      }
+
+      // Exports & Save
+      function exportToCsv(){
+        if(!currentQueryResult) return alert('No data.');
+        const r = currentQueryResult[0];
+        const csv = [r.columns.join(',')]
+          .concat(r.values.map(row=>
+            row.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')
+          )).join('\n');
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+        a.download='export.csv'; a.click();
+      }
+      
+      function exportToXlsx(){
+        if(!currentQueryResult) return alert('No data.');
+        const r = currentQueryResult[0];
+        const ws = XLSX.utils.aoa_to_sheet([r.columns, ...r.values]);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb,ws,'Export');
+        XLSX.writeFile(wb,'export.xlsx');
+      }
+      
+function saveResultsAsNewTable() {
+  if (!currentQueryResult) return alert('No data.');
+
+  const r = currentQueryResult[0];
+  let name;
+
+  while (true) {
+    name = prompt('Enter new table name:');
+    if (!name) return; // user cancelled
+
+    // Check if table exists
+    const exists = db.exec(`SELECT name FROM sqlite_master WHERE type='table' AND name='${name}';`);
+    if (exists.length) {
+      alert(`⚠️ Table "${name}" already exists. Please choose a different name.`);
+    } else {
+      break; // name is unique
+    }
+  }
+
+  try {
+    // Create new table
+    db.run(`CREATE TABLE "${name}" (${r.columns.map(c => `"${c}" TEXT`).join(',')});`);
+    const st = db.prepare(`INSERT INTO "${name}" VALUES(${r.columns.map(() => '?').join(',')});`);
+    r.values.forEach(row => st.run(row));
+    st.free();
+
+    const cnt = db.exec(`SELECT COUNT(*) FROM "${name}";`)[0].values[0][0];
+    updateFileMapping(name, cnt, r.columns);
+    alert(`✅ Saved as "${name}" (${cnt} rows).`);
+
+  } catch (e) {
+    alert('❌ Error saving table: ' + e.message);
+  }
+}
+
+
+      // Convert to SQL export
+      function exportResultsAsSql(tableName) {
+        if (!tableName) {
+          alert("No table name provided.");
+          return;
+        }
+        const res = db.exec(`SELECT * FROM "${tableName}";`);
+        if (!res.length || !res[0].values.length) {
+          alert("No data available to export.");
+          return;
+        }
+        const d = res[0];
+
+        // SQLite-style DROP + CREATE
+        let sql = `DROP TABLE IF EXISTS "${tableName}";\n`;
+        sql += `CREATE TABLE "${tableName}" (\n  ` +
+               d.columns.map(c => `"${c}" TEXT`).join(",\n  ") +
+               `\n);\n\n`;
+
+        // INSERT statements
+        d.values.forEach(row => {
+          const vals = row
+            .map(v => `'${String(v).replace(/'/g, "''")}'`)
+            .join(", ");
+          sql += `INSERT INTO "${tableName}" ("${d.columns.join('","')}") VALUES (${vals});\n`;
+        });
+
+        const blob = new Blob([sql], { type: "application/sql" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = `${tableName}.sql`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(a.href);
+      }
+
+      // File upload handler
+      function handleFiles(e){
+        const files = Array.from(e.target.files);
+        files.forEach(f=>{
+          const r = new FileReader();
+          r.onload = ev=>{
+            const data = new Uint8Array(ev.target.result);
+            const wb = XLSX.read(data,{type:'array'});
+            const sheets = wb.SheetNames;
+            const sel = sheets[0];
+            tableCounter++;
+            const tbl = 'excel_data'+tableCounter;
+            fileTableMapping.push({
+              filename: f.name,
+              tableName: tbl,
+              recordCount:0,
+              columns:[],
+              sheets:sheets,
+              selectedSheet:sel,
+              workbook:wb
+            });
+            renderFileList();
+            const json = XLSX.utils.sheet_to_json(
+              wb.Sheets[sel],
+              { defval: '', cellDates: false, raw: true }
+            );
+            loadExcelData(json, tbl);
+          };
+          r.readAsArrayBuffer(f);
+        });
+      }
+
+      // Init CodeMirror
+function initCodeMirror() {
+  editor = CodeMirror(document.getElementById('queryEditor'), {
+    mode: 'text/x-sql',
+    theme: 'default',
+    lineNumbers: true,
+    matchBrackets: true,
+    indentWithTabs: true,
+    smartIndent: true,
+    lineWrapping: true,
+    viewportMargin: Infinity,
+    placeholder: "Input your query here", // Added placeholder
+    extraKeys: {
+      "Ctrl-Space": "autocomplete",
+      "Ctrl-Enter": function() { runQuery(); }
+    }
+  });
+  
+// Set initial height to approx. 8 lines
+
+
+// Set initial height to approx. 8 lines
+const defaultLines = 8;
+const lineHeight = 24;
+const minHeight = defaultLines * lineHeight + 10;
+
+
+editor.setSize("100%", `${minHeight}px`);
+
+// Auto-resize based on content, but never shrink below 8 lines
+editor.on("change", function () {
+const lineCount = editor.lineCount();
+const newHeight = Math.max(minHeight, lineCount * lineHeight + 10);
+editor.setSize("100%", `${newHeight}px`);
+});
+
+}
+
+      // Init on DOM ready
+document.addEventListener('DOMContentLoaded', () => {
+  initDB();
+  initCodeMirror();
+  
+  // Hide record count initially
+  const recordCountEl = document.getElementById('recordCount');
+  recordCountEl.style.display = 'none';
+  
+  document.getElementById('fileUpload').addEventListener('change', handleFiles);
+  document.getElementById('runQueryBtn').addEventListener('click', runQuery);
+  document.getElementById('clearQueryBtn').addEventListener('click', clearQuery);
+  document.getElementById('sampleSimpleBtn').addEventListener('click', () => {
+    editor.setValue('SELECT * FROM excel_data1 LIMIT 10;');
+  });
+  document.getElementById('sampleJoinBtn').addEventListener('click', () => {
+    editor.setValue(
+      'SELECT a.column1, b.column2\n' +
+      'FROM excel_data1 AS a\n' +
+      'JOIN excel_data2 AS b ON a.common_field = b.common_field\n' +
+      'LIMIT 10;'
+    );
+  });
+});
+    })();
+
+// Modal functionality
+const modal = document.getElementById("helpModal");
+const helpBtn = document.getElementById("helpBtn");
+const closeBtn = document.getElementsByClassName("close")[0];
+
+helpBtn.onclick = function() {
+  modal.style.display = "block";
+  document.body.style.overflow = "hidden"; // Prevent scrolling behind modal
+}
+
+closeBtn.onclick = function() {
+  modal.style.display = "none";
+  document.body.style.overflow = "auto"; // Restore scrolling
+}
+
+window.onclick = function(event) {
+  if (event.target == modal) {
+    modal.style.display = "none";
+    document.body.style.overflow = "auto"; // Restore scrolling
+  }
+}
+
+// Tab functionality
+function openHelpTab(evt, tabName) {
+  let i, tabcontent, tablinks;
+  
+  // Hide all tab content
+  tabcontent = document.getElementsByClassName("tabcontent");
+  for (i = 0; i < tabcontent.length; i++) {
+    tabcontent[i].style.display = "none";
+  }
+  
+  // Remove "active" class from all tab buttons
+  tablinks = document.getElementsByClassName("tablinks");
+  for (i = 0; i < tablinks.length; i++) {
+    tablinks[i].className = tablinks[i].className.replace(" active", "");
+  }
+  
+  // Show the current tab and add "active" class to the button
+  document.getElementById(tabName).style.display = "block";
+  evt.currentTarget.className += " active";
+}
+
+</script>
+
+
+</body>
+</html>
